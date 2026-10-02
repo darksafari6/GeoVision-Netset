@@ -1,0 +1,10 @@
+{
+  "name": "GeoVision AI Platform",
+  "description": "Next-generation geospatial intelligence and location analysis platform with real-time tracking, 3D exploration, and IP intelligence.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
