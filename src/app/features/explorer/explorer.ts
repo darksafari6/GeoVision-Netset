@@ -8,55 +8,88 @@ import { GeoService } from '../../core/services/geo.service';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="relative h-screen w-full bg-slate-900">
+    <div class="relative h-screen w-full bg-slate-900 overflow-hidden">
       <!-- Map Container -->
       <div #mapContainer class="absolute inset-0 z-0"></div>
       
       <!-- Placeholder for Server Render -->
       @if (!isBrowser) {
         <div class="absolute inset-0 bg-slate-900 flex items-center justify-center">
-          <div class="text-slate-500 animate-pulse">Initializing Global Intelligence...</div>
+          <div class="text-slate-400 animate-pulse font-display tracking-widest uppercase">Initializing Orbital Mesh...</div>
         </div>
       }
 
-      <!-- Controls Overlay -->
-      <div class="absolute top-6 left-6 z-10 flex flex-col gap-4 pointer-events-none">
-        <div class="glass p-6 rounded-2xl w-80 pointer-events-auto">
-          <h2 class="text-xl font-bold mb-2">Earth Explorer</h2>
-          <p class="text-sm text-slate-400 mb-4">Interactive 2D/3D map intelligence.</p>
-          
-          <div class="space-y-4">
-            <div class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Map Layers</div>
-            <div class="grid grid-cols-2 gap-2">
-              <button (click)="setLayer('street')" [class.bg-emerald-500]="activeLayer === 'street'" class="px-3 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-xs transition-all">Street</button>
-              <button (click)="setLayer('sat')" [class.bg-emerald-500]="activeLayer === 'sat'" class="px-3 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-xs transition-all">Satellite</button>
+      <!-- UI Layers Overlay -->
+      <div class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-4 md:p-8">
+        
+        <!-- Top Bar Controls -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full">
+           <div class="glass p-3 md:p-4 rounded-2xl pointer-events-auto flex items-center gap-4 shadow-2xl border-white/5">
+              <div class="w-8 h-8 md:w-10 md:h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <span class="material-icons text-black text-sm md:text-lg font-black">explore</span>
+              </div>
+              <div>
+                <div class="text-xs font-black uppercase tracking-widest text-slate-500 leading-none mb-1">Active Sector</div>
+                <div class="text-sm md:text-base font-bold text-white truncate max-w-[120px] md:max-w-none">
+                  {{ lat() | number:'1.2-2' }}, {{ lng() | number:'1.2-2' }}
+                </div>
+              </div>
+           </div>
+
+           <!-- Search Bar Mobile/Desktop -->
+           <div class="w-full md:w-auto glass p-1.5 rounded-full flex items-center gap-2 pl-5 pr-1.5 shadow-2xl pointer-events-auto border-white/5">
+              <input 
+                type="text" 
+                placeholder="Search coordinates..." 
+                class="bg-transparent border-none outline-none text-xs md:text-sm w-full md:w-48 lg:w-64 text-white placeholder-slate-500 font-medium"
+              >
+              <button class="w-8 h-8 md:w-10 md:h-10 bg-emerald-500 rounded-full flex items-center justify-center transition-transform hover:scale-110 active:scale-95">
+                <span class="material-icons text-black text-sm md:text-lg">search</span>
+              </button>
+           </div>
+        </div>
+
+        <!-- Bottom Controls / Layer Switching -->
+        <div class="flex flex-col md:flex-row justify-between items-end gap-4 w-full">
+          <!-- Floating Coordinates Display -->
+          <div class="glass p-4 rounded-2xl pointer-events-auto hidden md:block border-white/5 shadow-2xl">
+            <div class="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Telemetry Data</div>
+            <div class="font-mono text-xs text-emerald-400 space-y-1">
+              <div>LATITUDE:  {{ lat() | number:'1.6-6' }}</div>
+              <div>LONGITUDE: {{ lng() | number:'1.6-6' }}</div>
             </div>
-            
-            <div class="text-xs font-semibold text-slate-500 uppercase tracking-widest mt-4">Active Coordinates</div>
-            <div class="bg-black/40 p-3 rounded-lg font-mono text-xs text-emerald-400">
-              LAT: {{ lat() | number:'1.4-4' }}<br>
-              LNG: {{ lng() | number:'1.4-4' }}
+          </div>
+
+          <!-- Bottom Actions / Mode Selection -->
+          <div class="w-full md:w-auto flex flex-col gap-3 pointer-events-auto">
+            <div class="glass p-2 rounded-2xl flex md:flex-row gap-1 border-white/5 shadow-2xl bg-slate-900/40 backdrop-blur-3xl">
+              <button 
+                (click)="setLayer('street')" 
+                [class.bg-emerald-500]="activeLayer === 'street'" 
+                [class.text-black]="activeLayer === 'street'"
+                [class.text-slate-400]="activeLayer !== 'street'"
+                class="flex-1 md:flex-none px-4 py-2 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest transition-all"
+              >
+                STREET
+              </button>
+              <button 
+                (click)="setLayer('sat')" 
+                [class.bg-emerald-500]="activeLayer === 'sat'" 
+                [class.text-black]="activeLayer === 'sat'"
+                [class.text-slate-400]="activeLayer !== 'sat'"
+                class="flex-1 md:flex-none px-4 py-2 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest transition-all"
+              >
+                SATELLITE
+              </button>
             </div>
 
-            <button (click)="locateMe()" class="w-full py-3 bg-indigo-500 hover:bg-indigo-400 rounded-xl font-semibold transition-all shadow-lg shadow-indigo-500/20">
-              Sync My Location
+            <button (click)="locateMe()" class="w-full md:w-48 py-3.5 bg-indigo-500 hover:bg-indigo-400 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition-all shadow-2xl shadow-indigo-500/20 flex items-center justify-center gap-2">
+              <span class="material-icons text-sm">my_location</span>
+              Sync Node
             </button>
           </div>
         </div>
-      </div>
 
-      <!-- Search Bar -->
-      <div class="absolute top-6 right-6 z-10 pointer-events-auto">
-        <div class="glass p-2 rounded-full flex items-center gap-2 pl-6 pr-2 shadow-2xl">
-          <input 
-            type="text" 
-            placeholder="Search coordinates or city..." 
-            class="bg-transparent border-none outline-none text-sm w-64 text-white placeholder-slate-500"
-          >
-          <button class="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center">
-            <span class="material-icons text-black text-sm">search</span>
-          </button>
-        </div>
       </div>
     </div>
   `,
