@@ -1,89 +1,101 @@
-import { GoogleGenAI } from "@google/genai";
-import express from "express";
-import { fileURLToPath } from "node:url";
-import { dirname, join, resolve } from "node:path";
-import { createServer } from "node:http";
+import { GoogleGenAI } from '@google/genai';
+import express from 'express';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+import { createServer } from 'node:http';
+import crypto from 'node:crypto';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const serverDistFolder = resolve(__dirname, '../dist/app/server');
 const browserDistFolder = resolve(__dirname, '../dist/app/browser');
-
 const app = express();
 const server = createServer(app);
-const port = process.env['PORT'] || 3000;
+const port = Number(process.env['PORT'] || 3000);
 
-app.use(express.json({ limit: '10mb' }));
+app.disable('x-powered-by');
+app.use(express.json({ limit: '12mb' }));
+app.use(express.raw({ type: 'application/octet-stream', limit: '20mb' }));
 
-const apiKey = process.env['GEMINI_API_KEY'] || '';
-const genAI = new GoogleGenAI({ apiKey });
+const apiKey = process.env['GEMINI_API_KEY'];
+const genAI = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
-/**
- * IP Intelligence Proxy
- */
-app.get('/api/ip-info', async (req, res): Promise<any> => {
+const upstreamJson = async (url: string, init?: RequestInit) => {
+  const response = await fetch(url, init);
+  if (!response.ok) throw new Error(`Upstream request failed: ${response.status}`);
+  return response.json();
+};
+
+app.get('/api/health', (_req, res) => res.json({ status: 'ok', service: 'geovision-api', timestamp: new Date().toISOString() }));
+
+app.get('/api/ip-info', async (_req, res) => {
+  try { res.json(await upstreamJson('https://ipapi.co/json/')); }
+  catch { res.status(502).json({ error: 'IP intelligence provider unavailable.' }); }
+});
+
+app.get('/api/geocode', async (req, res) => {
+  const query = typeof req.query['q'] === 'string' ? req.query['q'].trim() : '';
+  if (query.length < 2 || query.length > 160) return res.status(400).json({ error: 'Query must contain 2–160 characters.' });
   try {
-    const response = await fetch('https://ipapi.co/json/');
-    const data = await response.json();
-    return res.json(data);
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to fetch IP info' });
-  }
+    const url = new URL('https://nominatim.openstreetmap.org/search');
+    url.searchParams.set('q', query); url.searchParams.set('format', 'jsonv2'); url.searchParams.set('addressdetails', '1'); url.searchParams.set('limit', '8');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.json(await upstreamJson(url.toString(), { headers: { 'User-Agent': 'GeoVision-AI-Platform/1.1 (+https://github.com/darksafari6/GeoVision-Netset)' } }));
+  } catch { res.status(502).json({ error: 'Geocoding provider unavailable.' }); }
 });
 
-/**
- * AI Image Location Analysis
- */
-app.post('/api/analyze-image', async (req, res): Promise<any> => {
-  const { imageBase64 } = req.body;
-  if (!imageBase64) {
-    return res.status(400).json({ error: 'No image provided' });
-  }
+app.get('/api/reverse-geocode', async (req, res) => {
+  const lat = Number(req.query['lat']); const lon = Number(req.query['lon']);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) return res.status(400).json({ error: 'Valid latitude and longitude are required.' });
+  try {
+    const url = new URL('https://nominatim.openstreetmap.org/reverse');
+    url.searchParams.set('lat', String(lat)); url.searchParams.set('lon', String(lon)); url.searchParams.set('format', 'jsonv2');
+    res.json(await upstreamJson(url.toString(), { headers: { 'User-Agent': 'GeoVision-AI-Platform/1.1 (+https://github.com/darksafari6/GeoVision-Netset)' } }));
+  } catch { res.status(502).json({ error: 'Reverse geocoding provider unavailable.' }); }
+});
+
+app.post('/api/analyze-image', async (req, res) => {
+  const { imageBase64, mimeType } = req.body ?? {};
+  if (!genAI) return res.status(503).json({ error: 'Gemini AI is not configured on this server.' });
+  if (typeof imageBase64 !== 'string' || imageBase64.length < 100 || imageBase64.length > 11_000_000) return res.status(400).json({ error: 'Invalid image payload.' });
+  const allowed = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic']);
+  const safeMime = allowed.has(mimeType) ? mimeType : 'image/jpeg';
+  const data = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
+  if (!/^[A-Za-z0-9+/=]+$/.test(data)) return res.status(400).json({ error: 'Invalid base64 image.' });
 
   try {
-    // Using any for model to bypass suspicious type error in this environment
-    const model = (genAI as any).getGenerativeModel({ model: "gemini-1.5-flash" });
-    const prompt = "Identify the location where this photo was taken. Look for landmarks, architecture, flora, terrain, or signs. Provide a city, country, and estimated coordinates if possible. Format as JSON: { \"city\": \"...\", \"country\": \"...\", \"latitude\": 0, \"longitude\": 0, \"confidence\": 0, \"clues\": [...] }";
-    
-    const result = await model.generateContent([
-      prompt,
-      { inlineData: { data: imageBase64.split(',')[1], mimeType: "image/jpeg" } }
-    ]);
-
-    const text = result.response.text();
-    // Simple JSON extraction from markdown
-    const jsonStr = text.match(/\{[\s\S]*\}/)?.[0] || '{}';
-    res.json(JSON.parse(jsonStr));
+    const result = await genAI.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [
+        { text: 'Analyze this image for geolocation. Use visible landmarks, architecture, signs, road markings, terrain, vegetation and cultural clues. Return strict JSON with city, country, latitude, longitude, confidence (0-1), and clues (array). Never claim exact coordinates unless evidence supports them.' },
+        { inlineData: { data, mimeType: safeMime } },
+      ] }],
+      config: { responseMimeType: 'application/json' },
+    });
+    const text = result.text ?? '{}';
+    res.json(JSON.parse(text));
   } catch (error) {
-    console.error('Gemini error:', error);
-    res.status(500).json({ error: 'AI analysis failed' });
+    console.error('Gemini image analysis failed', error);
+    res.status(502).json({ error: 'AI image analysis failed.' });
   }
 });
 
-/**
- * Speed Test Endpoints
- */
-app.get('/api/ping', (req, res) => {
-  res.send('pong');
+app.get('/api/ping', (_req, res) => res.status(204).end());
+
+app.get('/api/speed-test/download', (req, res) => {
+  const requested = Number(req.query['bytes'] ?? 5_000_000);
+  const bytes = Math.min(Math.max(Number.isFinite(requested) ? Math.floor(requested) : 5_000_000, 256_000), 20_000_000);
+  const buffer = Buffer.allocUnsafe(bytes);
+  crypto.randomFillSync(buffer);
+  res.set({ 'Content-Type': 'application/octet-stream', 'Content-Length': String(bytes), 'Cache-Control': 'no-store', 'X-GeoVision-Test-Bytes': String(bytes) });
+  res.end(buffer);
 });
 
-// Serve static files
-app.get(/^(?!\/api).+/, express.static(browserDistFolder, {
-  maxAge: '1y',
-  index: 'index.html',
-}));
-
-// Angular SSR catch-all
-app.get(/^(?!\/api).+/, (req, res, next) => {
-  const { protocol, originalUrl, baseUrl, headers } = req;
-  // This is a placeholder for actual Angular SSR integration
-  // In a full build, @angular/ssr handles this
-  res.sendFile(join(browserDistFolder, 'index.html'));
+app.post('/api/speed-test/upload', (req, res) => {
+  const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+  res.set('Cache-Control', 'no-store').json({ bytes: body.length });
 });
 
-if (import.meta.url === `file://${resolve(process.argv[1])}`) {
-  server.listen(port, () => {
-    console.log(`Node Express server listening on http://localhost:${port}`);
-  });
-}
+app.use(express.static(browserDistFolder, { maxAge: '1h', index: 'index.html' }));
+app.get('*', (_req, res) => res.sendFile(resolve(browserDistFolder, 'index.html')));
 
+if (import.meta.url === `file://${resolve(process.argv[1])}`) server.listen(port, () => console.log(`GeoVision API listening on http://localhost:${port}`));
 export default app;
