@@ -1,92 +1,103 @@
 # 🌍 GeoVision AI Platform
 
-> **Next-Generation Geospatial Intelligence & Planetary Analysis Node** 🛰️
+> **Futuristic geospatial intelligence, location analysis and network telemetry for the web.** 🛰️🌐
 
-![GeoVision Banner](https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80)
+GeoVision is an Angular 21 application that combines browser geolocation, real IP intelligence, real geocoding, an interactive Three.js Earth, Leaflet mapping, image geolocation through Gemini, and measured network throughput into one responsive workspace.
 
-## 🌌 Overview
+## ✨ What is implemented
 
-**GeoVision AI** is an enterprise-grade geospatial intelligence platform designed to synthesize orbital telemetry, ground-based data, and visual patterns into a unified actionable spectrum. Built with the latest **Angular 21** and powered by **Gemini AI**, it provides unparalleled planetary awareness for researchers, security experts, and urban planners.
+- 🌎 **3D Earth Explorer** — Three.js globe with drag rotation, wheel zoom, adaptive rendering and a 2D OpenStreetMap mode.
+- 📍 **Live Location** — Browser Geolocation API with high-accuracy positioning and location-watch support.
+- 🔎 **Location Search** — Server-proxied Nominatim search with real place names, coordinates and OpenStreetMap navigation.
+- 🔁 **Reverse Geocoding API** — Convert validated latitude/longitude into a real place result.
+- 🛰️ **IP Intelligence** — Server-side proxy to `ipapi.co` so provider calls do not expose client-side application logic.
+- 🧠 **Visual AI** — Gemini image analysis with MIME validation, payload limits and structured JSON output.
+- ⚡ **Network Speed Test** — Real latency samples, jitter calculation, measured download throughput and measured upload throughput. No random/simulated speed values.
+- 🎛️ **Responsive navigation** — Desktop rail, mobile drawer and one-handed bottom navigation.
+- 🎨 **Futuristic UI** — Glass surfaces, responsive cards, GSAP/Three.js motion and smooth mobile layouts.
+- 🧠 **NgRx state foundation** — Central application preference/system state with lazy feature routing.
+
+## 🏗️ Architecture
+
+```text
+src/app/
+├── core/
+│   ├── services/
+│   │   ├── geo.service.ts
+│   │   └── theme.service.ts
+│   └── state/
+│       └── app.state.ts
+├── features/
+│   ├── home/
+│   ├── dashboard/
+│   ├── explorer/
+│   ├── location-search/
+│   ├── live-location/
+│   ├── ip-intel/
+│   ├── speed-test/
+│   ├── image-detection/
+│   └── settings/
+└── app.routes.ts
+```
+
+Every major page is lazy-loaded through the Angular router. Browser-only APIs are guarded for SSR, and network/API work is kept behind services or the Express API layer.
+
+## 🔐 Environment
+
+Copy `.env.example` to your deployment environment and configure:
+
+```env
+GEMINI_API_KEY=your_server_side_key
+APP_URL=https://your-domain.example
+```
+
+Never commit a real Gemini key to the repository. The server owns the provider credential.
+
+## 🚀 Run locally
+
+```bash
+npm install
+npm start
+```
+
+For a production build:
+
+```bash
+npm run build
+```
+
+## 🌐 API surface
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/health` | Service health |
+| `GET /api/ip-info` | Public IP intelligence |
+| `GET /api/geocode?q=` | Place search |
+| `GET /api/reverse-geocode?lat=&lon=` | Reverse geocoding |
+| `POST /api/analyze-image` | Gemini visual geolocation |
+| `GET /api/ping` | Latency measurement |
+| `GET /api/speed-test/download` | Download throughput payload |
+| `POST /api/speed-test/upload` | Upload throughput measurement |
+
+## 🧩 Production notes
+
+- API keys stay server-side.
+- Inputs are validated at the API boundary.
+- Image uploads are size- and MIME-limited.
+- Geocoding calls are proxied through the backend and use a descriptive User-Agent.
+- Speed-test results are measured from actual transferred bytes and persisted locally as test history.
+- The 3D explorer uses a capped device pixel ratio to control GPU load.
+- Angular routes are split by feature to reduce the initial bundle.
+
+## 📝 Current verification status
+
+The repository has been updated directly on `main`. The available execution environment could not resolve `github.com`, so a fresh remote clone/build could not be run here. The code changes were therefore checked structurally against the existing Angular project files; run `npm install && npm run build` in CI or locally to perform the final compiler/bundle verification.
+
+## 📜 License
+
+MIT
 
 ---
 
-## 🛠️ Core Intelligence Modules
-
-### 🗺️ 1. Global Earth Explorer
-*   **3D Orbital Mesh**: High-performance interactive map interface.
-*   **Intelligence Layers**: Seamlessly switch between high-resolution Satellite and Street intelligence.
-*   **Node Sync**: Instant synchronization with local GPS telemetry.
-
-### 🧠 2. Visual AI Analysis (Gemini Powered)
-*   **Architectural Reasoning**: Identify locations based on building patterns and landmarks.
-*   **Flora/Terrain Extraction**: Intelligent detection of regional environmental clues.
-*   **Confidence Scoring**: Real-time probability indexing for every scan.
-
-### 🛰️ 3. Live Telemetry Tracking
-*   **High-Precision GPS**: Direct integration with browser-based geolocation APIs.
-*   **Node History**: Immutable log of coordinate transitions and accuracy metrics.
-*   **Propagation Delay Monitoring**: Real-time latency tracking for tracking clusters.
-
-### 🛡️ 4. IP & Network Intelligence
-*   **Deep Origin Analysis**: Automated ASN and ISP verification.
-*   **Security Posture**: Instant RBL and proxy detection.
-*   **Throughput Testing**: Measure mesh node latency and download capacity.
-
----
-
-## 🚀 Technical Architecture
-
-### ⚡ Frontend Core
-- **Angular 21 (Zoneless)**: Maximum performance with signal-based reactivity.
-- **Three.js**: Custom particle systems and immersive 3D space environments.
-- **GSAP & ScrollTrigger**: Smooth, cinematic UI transitions and scroll-based storytelling.
-- **Tailwind CSS 4**: Modern utility-first styling with high-end glassmorphism effects.
-
-### ⚙️ Backend Logic
-- **Express Proxy Layer**: Secure handling of IP APIs and Gemini AI keys.
-- **Gemini 1.5 Flash**: Lightning-fast visual processing for image geolocation.
-- **SSR/SSG Ready**: Fully optimized for search engines and fast first-contentful paint.
-
----
-
-## 🎨 Design Philosophy: *The Unified Mesh*
-
-The UI is built on a **Futuristic Dark Spectrum** 🌑:
-- **Glassmorphism**: Subtle translucency to mimic orbital instrumentation.
-- **Cyber Emerald & Indigo**: High-contrast indicators for system status and data streams.
-- **Cinematic Motion**: Every scroll interaction reveals a new layer of intelligence.
-
----
-
-## 🔧 Installation & Deployment
-
-1.  **Clone the Protocol**:
-    ```bash
-    git clone https://github.com/geovision/platform-node.git
-    ```
-2.  **Initialize Mesh**:
-    ```bash
-    npm install
-    ```
-3.  **Sync Node**:
-    ```bash
-    npm start
-    ```
-
----
-
-## 📄 License
-This platform is released under the **Unified Intelligence Protocol License (MIT)**. 
-
-> *"Synthesizing the invisible into the invincible."* — **GeoVision Dev Team** 🚀
-
----
-
-### 📡 System Status: OPERATIONAL 🟢
-- **Build**: v1.0.4-Stable
-- **Mesh Integrity**: 100%
-- **Neural Layer**: Active
-- **Orbital Sync**: Synced
-
----
-*Developed with 💚 for the future of our planet.*
+### 🧭 GeoVision
+**Observe. Locate. Analyze. Understand.** 🌍💚
